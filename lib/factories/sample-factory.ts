@@ -140,6 +140,15 @@ export class ConcreteSampleFactory extends SampleFactory {
     }
     return false
   }
+
+  deleteSample(id: string): boolean {
+    const index = this.samples.findIndex((s) => s.id === id)
+    if (index !== -1) {
+      this.samples.splice(index, 1)
+      return true
+    }
+    return false
+  }
 }
 
 // Singleton instance

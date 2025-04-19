@@ -12,7 +12,7 @@ import { getAlertFactory, type Alert as AlertType } from "@/lib/factories/alert-
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState<AlertType[]>([])
-  const [filterLocation, setFilterLocation] = useState("all")
+  const [filterLocation, setFilterLocation] = useState<"all" | "Main Entrance" | "Parking Lot" | "Hallway" | "Cafeteria">("all")
   const [filterStatus, setFilterStatus] = useState<"all" | "new" | "reviewed" | "dismissed">("all")
 
   const alertFactory = getAlertFactory()
@@ -20,7 +20,7 @@ export default function Alerts() {
   useEffect(() => {
     // Load alerts from the factory
     setAlerts(alertFactory.getAlerts())
-  }, [])
+  }, [alertFactory])
 
   const filteredAlerts = alerts.filter((alert) => {
     // Filter by location
@@ -44,13 +44,13 @@ export default function Alerts() {
     }
   }
 
-  const handleDismissAlert = (alertId: string) => {
-    const success = alertFactory.updateAlertStatus(alertId, "dismissed")
-    if (success) {
-      // Update the alerts list
-      setAlerts(alertFactory.getAlerts())
-    }
-  }
+  // const handleDismissAlert = (alertId: string) => {
+  //   const success = alertFactory.updateAlertStatus(alertId, "dismissed")
+  //   if (success) {
+  //     // Update the alerts list
+  //     setAlerts(alertFactory.getAlerts())
+  //   }
+  // }
 
   return (
     <div className="container mx-auto py-6">
@@ -74,7 +74,7 @@ export default function Alerts() {
               <select
                 className="p-2 border rounded-md"
                 value={filterLocation}
-                onChange={(e) => setFilterLocation(e.target.value)}
+                onChange={(e) => setFilterLocation(e.target.value as "all" | "Main Entrance" | "Parking Lot" | "Hallway" | "Cafeteria")}
               >
                 <option value="all">All Locations</option>
                 <option value="Main Entrance">Main Entrance</option>
@@ -85,7 +85,7 @@ export default function Alerts() {
               <select
                 className="p-2 border rounded-md"
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
+                onChange={(e) => setFilterStatus(e.target.value as "all" | "new" | "reviewed" | "dismissed")}
               >
                 <option value="all">All Status</option>
                 <option value="new">New</option>
@@ -397,7 +397,7 @@ export default function Alerts() {
                   <select className="w-full p-2 border rounded-md">
                     <option value="all">All Alerts</option>
                     <option value="high" selected>
-                      High Confidence Only (>80%)
+                      High Confidence Only ({'>'}80%)
                     </option>
                     <option value="critical">Critical Areas Only</option>
                   </select>

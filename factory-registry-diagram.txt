@@ -1,0 +1,40 @@
++-------------------+    +-------------------+    +------------------+
+|  DetectorRegistry |    |   ModelRegistry   |    |StrategyRegistry |
++-------------------+    +-------------------+    +------------------+
+| + register()      |    | + register()      |    | + register()    |
+| + getCreator()    |    | + getCreator()    |    | + getCreator()  |
+| - creators: Map   |    | - creators: Map    |    | - creators: Map |
++-------------------+    +-------------------+    +------------------+
+         ^                        ^                       ^
+         |                        |                       |
++-------------------+    +-------------------+    +------------------+
+| DetectorFactory   |    |   ModelFactory    |    |StrategyFactory  |
++-------------------+    +-------------------+    +------------------+
+| + createDetector()|    | + createModel()   |    | + create()      |
+| # generateId()    |    | # generateId()    |    | # initialize()  |
++-------------------+    +-------------------+    +------------------+
+         ^                        ^                       ^
+         |                        |                       |
++-------------------+    +-------------------+    +------------------+
+|ConcreteDetector   |    |ConcreteModel      |    |ConcreteStrategy |
+|Factory            |    |Factory            |    |Factory          |
++-------------------+    +-------------------+    +------------------+
+| - initialize()    |    | - initialize()    |    | - initialize()  |
++-------------------+    +-------------------+    +------------------+
+
++--------------------------------+
+|    DetectionSystemFactory      |
++--------------------------------+
+| + createDetector()             |
+| + createModel()                |
+| + createStrategy()             |
++--------------------------------+
+                ^
+                |
++--------------------------------+
+|ViolenceDetectionSystemFactory  |
++--------------------------------+
+| + createDetector()             |
+| + createModel()                |
+| + createStrategy()             |
++--------------------------------+

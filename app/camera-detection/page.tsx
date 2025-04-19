@@ -1,21 +1,16 @@
 "use client"
 
 import type { FormEvent } from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Camera, AlertCircle, CheckCircle, Plus, Settings } from "lucide-react"
+import { Camera, AlertCircle, CheckCircle, Plus, Settings, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { getModelFactory } from "@/lib/factories/model-factory"
-import {
-  getDetectorFactory,
-  type CameraDetectionInput,
-  type CameraDetectionResult,
-} from "@/lib/factories/detector-factory"
+import { getViolenceDetectionFacade } from "@/lib/facades/violence-detection-facade"
 
 // API URL from environment variable or default to localhost during development
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -26,19 +21,51 @@ export default function CameraDetection() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [selectedCamera, setSelectedCamera] = useState("webcam")
-  const [selectedModelId, setSelectedModelId] = useState("model2") // Default to Enhanced Violence Model
+  const [selectedStrategyId, setSelectedStrategyId] = useState("violence") // Mặc định sử dụng chiến lược phát hiện bạo lực
   const [alertThreshold, setAlertThreshold] = useState(65)
   const [enableNotifications, setEnableNotifications] = useState(true)
   const [recordDetections, setRecordDetections] = useState(true)
+  const [strategies, setStrategies] = useState<{ id: string; name: string; description: string; accuracy: number }[]>(
+    [],
+  )
+  const [apiStatus, setApiStatus] = useState<"connecting" | "connected" | "error">("connecting")
 
-  const [cameras] = useState([
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [cameras, setCameras] = useState([
     { id: "webcam", name: "Webcam" },
     { id: "cam1", name: "Front Entrance" },
     { id: "cam2", name: "Parking Lot" },
     { id: "cam3", name: "Hallway" },
   ])
 
-  const [models, setModels] = useState(getModelFactory().getAvailableModels())
+  // Get the facade
+  const violenceDetectionFacade = getViolenceDetectionFacade()
+
+  // Kiểm tra kết nối với API khi component được tải
+  useEffect(() => {
+    const checkApiConnection = async () => {
+      try {
+        // Thử gọi API để kiểm tra kết nối
+        const response = await fetch(`${API_URL}/`, {
+          method: "GET",
+        })
+
+        if (response.ok) {
+          setApiStatus("connected")
+        } else {
+          setApiStatus("error")
+        }
+      } catch (err) {
+        console.error("API connection error:", err)
+        setApiStatus("error")
+      }
+    }
+
+    checkApiConnection()
+
+    // Load strategies from the facade
+    setStrategies(violenceDetectionFacade.getAvailableStrategies())
+  }, [violenceDetectionFacade])
 
   const startCameraDetection = async (e?: FormEvent) => {
     if (e) e.preventDefault()
@@ -47,31 +74,84 @@ export default function CameraDetection() {
     setError(null)
 
     try {
-      // Get the selected model
-      const modelFactory = getModelFactory()
-      const model = modelFactory.getModelById(selectedModelId)
+      // Gọi API backend để bắt đầu phát hiện từ camera
+      // Sử dụng endpoint '/detect_camera' như trong mã backend
+      const apiRequest = async () => {
+        const response = await fetch(`${API_URL}/detect_camera`, {
+          method: "GET",
+          // Không cần body vì endpoint sử dụng GET
+        })
 
-      if (!model) {
-        throw new Error("Selected model not found")
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status} ${response.statusText}`)
+        }
+
+        return await response.json()
       }
 
-      // Create a detector using the factory
-      const detectorFactory = getDetectorFactory()
-      const detector = detectorFactory.createDetector("camera", model)
+      // Đồng thời sử dụng facade để phát hiện bạo lực
+      const facadeRequest = violenceDetectionFacade.detectViolenceFromCamera(selectedCamera, selectedStrategyId)
 
-      // Use the detector to start camera detection
-      const input: CameraDetectionInput = { cameraId: selectedCamera }
-      const result = (await detector.detect(input)) as CameraDetectionResult
+      // Thực hiện cả hai request
+      let apiResult
+      try {
+        // Nếu API đang kết nối, thử gọi API
+        if (apiStatus === "connected") {
+          apiResult = await apiRequest()
+        }
+      } catch (apiErr) {
+        console.error("API error:", apiErr)
+        // Nếu API lỗi, vẫn tiếp tục với facade
+      }
 
-      setMessage(result.message)
+      // Luôn thực hiện facade request
+      await facadeRequest
+
+      // Lấy thông tin chiến lược đã chọn
+      const selectedStrategy = strategies.find((strategy) => strategy.id === selectedStrategyId)
+      const strategyName = selectedStrategy ? selectedStrategy.name : "selected strategy"
+
+      // Tạo thông báo thành công
+      let successMessage = `Detection started on camera ${selectedCamera} using ${strategyName}`
+      if (apiResult) {
+        successMessage += `. ${apiResult.message || "API connected successfully"}`
+      } else if (apiStatus === "connected") {
+        successMessage += `. API Status: Error connecting to backend`
+      } else {
+        successMessage += `. Using local detection only`
+      }
+
+      setMessage(successMessage)
       setIsStarted(true)
     } catch (err) {
+      console.error("Error starting camera detection:", err)
       setError(err instanceof Error ? err.message : "An unknown error occurred")
       setIsStarted(false)
     } finally {
       setIsLoading(false)
     }
   }
+
+  const stopCameraDetection = async () => {
+    setIsLoading(true)
+
+    try {
+      // Backend không có endpoint để dừng camera, nhưng theo mã backend,
+      // người dùng cần nhấn 'q' trên máy chủ để dừng
+      setIsStarted(false)
+      setMessage(
+        "Camera detection stopped. If the detection window is still open on the server, press 'q' to close it.",
+      )
+    } catch (err) {
+      console.error("Error stopping camera detection:", err)
+      setError(err instanceof Error ? err.message : "An unknown error occurred")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Lấy thông tin chiến lược đã chọn
+  const selectedStrategy = strategies.find((strategy) => strategy.id === selectedStrategyId)
 
   return (
     <div className="container mx-auto py-6">
@@ -89,19 +169,46 @@ export default function CameraDetection() {
             <div className="md:col-span-2">
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle>Live Camera Feed</CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Live Camera Feed</span>
+                    <div className="flex items-center text-sm">
+                      <span className="mr-2">API Status:</span>
+                      {apiStatus === "connecting" && (
+                        <span className="flex items-center text-yellow-500">
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          Connecting
+                        </span>
+                      )}
+                      {apiStatus === "connected" && (
+                        <span className="flex items-center text-green-500">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Connected
+                        </span>
+                      )}
+                      {apiStatus === "error" && (
+                        <span className="flex items-center text-red-500">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Error
+                        </span>
+                      )}
+                    </div>
+                  </CardTitle>
                   <CardDescription>Real-time violence detection from selected camera</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center h-80 bg-gray-100 rounded-md">
                   {isStarted ? (
                     <div className="text-center">
-                      <p className="text-gray-500 mb-2">Camera window is open on the server machine</p>
-                      <p className="text-sm text-gray-400">Press 'q' on the server to stop detection</p>
+                      <p className="text-gray-500 mb-2">Camera detection is active</p>
+                      <p className="text-sm text-gray-400">
+                        {apiStatus === "connected"
+                          ? "Camera window is open on the server machine. Press 'q' on the server to stop detection."
+                          : "Using local detection only"}
+                      </p>
                     </div>
                   ) : (
                     <div className="text-center">
                       <Camera className="h-24 w-24 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500">Select a camera and click "Start Detection"</p>
+                      <p className="text-gray-500">Select a camera and click {"Start Detection"}</p>
                     </div>
                   )}
                 </CardContent>
@@ -120,9 +227,15 @@ export default function CameraDetection() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={startCameraDetection} disabled={isLoading || isStarted} className="w-1/2">
-                    {isLoading ? "Starting..." : isStarted ? "Detection Running" : "Start Detection"}
-                  </Button>
+                  {!isStarted ? (
+                    <Button onClick={startCameraDetection} disabled={isLoading} className="w-1/2">
+                      {isLoading ? "Starting..." : "Start Detection"}
+                    </Button>
+                  ) : (
+                    <Button onClick={stopCameraDetection} disabled={isLoading} variant="destructive" className="w-1/2">
+                      {isLoading ? "Stopping..." : "Stop Detection"}
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             </div>
@@ -130,23 +243,30 @@ export default function CameraDetection() {
             <div>
               <Card className="mb-6">
                 <CardHeader>
-                  <CardTitle>Detection Model</CardTitle>
+                  <CardTitle>Detection Strategy</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <Select value={selectedModelId} onValueChange={setSelectedModelId}>
+                <CardContent className="space-y-4">
+                  <Select value={selectedStrategyId} onValueChange={setSelectedStrategyId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Model" />
+                      <SelectValue placeholder="Select Strategy" />
                     </SelectTrigger>
                     <SelectContent>
-                      {models
-                        .filter((model) => model.status === "active")
-                        .map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.name}
-                          </SelectItem>
-                        ))}
+                      {strategies.map((strategy) => (
+                        <SelectItem key={strategy.id} value={strategy.id}>
+                          {strategy.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+
+                  {selectedStrategy && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      <p>
+                        <strong>Accuracy:</strong> {selectedStrategy.accuracy.toFixed(1)}%
+                      </p>
+                      <p className="mt-1">{selectedStrategy.description}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -195,10 +315,8 @@ export default function CameraDetection() {
           {message && (
             <Alert className="border-green-500 bg-green-50 mt-6">
               <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-700">Detection Started</AlertTitle>
-              <AlertDescription className="text-green-600">
-                {message}. A window should now be open on your computer showing the camera feed with violence detection.
-              </AlertDescription>
+              <AlertTitle className="text-green-700">Detection Status</AlertTitle>
+              <AlertDescription className="text-green-600">{message}</AlertDescription>
             </Alert>
           )}
         </TabsContent>

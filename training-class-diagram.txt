@@ -1,0 +1,23 @@
++----------------------+     +-------------------------+
+|  ModelTrainingFacade |     |    TrainingStrategy    |
++----------------------+     +-------------------------+
+| - trainingContext    |     | + train()              |
+| + trainModel()       |     | + getName()            |
+| + getStrategies()    |     | + getDescription()     |
++----------------------+     | + getRequiredResources()|
+           |                +-------------------------+
+           |                           ^
+           |                           |
++----------------------+    +-------------------------+
+| MovementRecognition  |    | ViolenceBehaviorTraining|
+| Training             |--->| TransferLearning        |
++----------------------+    +-------------------------+
+
++----------------------+    +------------------------+
+|    ModelFactory      |    |         Model         |
++----------------------+    +------------------------+
+| + createModel()      |    | - id: string          |
+| + getModelInfo()     |--->| - name: string        |
++----------------------+    | - type: string        |
+                          | - accuracy: number     |
+                          +------------------------+

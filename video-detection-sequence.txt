@@ -1,0 +1,21 @@
+Client          ViolenceDetectionFacade    DetectionContext    DetectionStrategy    AlertFactory
+  |                    |                        |                    |                  |
+  | detectVideo()      |                        |                    |                  |
+  |------------------>|                        |                    |                  |
+  |                    |                        |                    |                  |
+  |                    | setStrategy()          |                    |                  |
+  |                    |----------------------->|                    |                  |
+  |                    |                        |                    |                  |
+  |                    | detectViolence()       |                    |                  |
+  |                    |----------------------->|                    |                  |
+  |                    |                        | detect()           |                  |
+  |                    |                        |------------------->|                  |
+  |                    |                        |                    |                  |
+  |                    |                        | DetectionResult    |                  |
+  |                    |                        |<-------------------|                  |
+  |                    |                        |                    |                  |
+  |                    | createAlertIfNeeded()  |                    |                  |
+  |                    |------------------------------------------------->|            |
+  |                    |                        |                    |                  |
+  | Result             |                        |                    |                  |
+  |<------------------|                        |                    |                  |

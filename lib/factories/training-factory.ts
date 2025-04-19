@@ -99,6 +99,7 @@ export class ConcreteTrainingSession implements TrainingSession {
         ? "movement"
         : "behavior"
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const newModel = modelFactory.createModel(modelType, {
       name: this.modelName,
       accuracy: this.accuracy,

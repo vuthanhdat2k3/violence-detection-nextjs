@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export default function Header() {
-  const [notifications, setNotifications] = useState<{ id: number; message: string; time: string }[]>([
+  const [notifications] = useState<{ id: number; message: string; time: string }[]>([
     { id: 1, message: "Violence detected in Camera 1", time: "2 minutes ago" },
     { id: 2, message: "New model training completed", time: "1 hour ago" },
   ])

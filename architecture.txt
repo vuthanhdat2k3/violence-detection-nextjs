@@ -1,0 +1,51 @@
+[Frontend Layer]
+├── Pages
+│   ├── Dashboard (/)
+│   ├── Video Detection (/video-detection)
+│   ├── Camera Detection (/camera-detection) 
+│   ├── Training (/training)
+│   ├── Statistics (/statistics)
+│   └── Alerts (/alerts)
+│
+[Application Layer]
+├── Facades
+│   ├── ViolenceDetectionFacade
+│   └── ModelTrainingFacade
+│
+├── Strategies
+│   ├── Detection Strategies
+│   │   ├── ViolenceDetectionStrategy
+│   │   ├── MovementDetectionStrategy
+│   │   └── BehaviorAnalysisStrategy
+│   │
+│   └── Training Strategies
+│       ├── MovementRecognitionTrainingStrategy
+│       ├── ViolenceBehaviorTrainingStrategy
+│       └── TransferLearningTrainingStrategy
+│
+├── Factories
+│   ├── DetectionStrategyFactory
+│   ├── TrainingStrategyFactory
+│   ├── ModelFactory
+│   ├── AlertFactory
+│   └── SampleFactory
+│
+[Domain Layer]
+├── Models
+│   ├── TrainingModel
+│   └── DetectionModel
+│
+├── Types
+│   ├── VideoData
+│   ├── TrainingData  
+│   ├── DetectionResult
+│   └── TrainingResult
+│
+[Infrastructure Layer]
+├── Data Storage
+│   ├── Sample Repository
+│   ├── Model Repository
+│   └── Alert Repository
+│
+└── External Services
+    └── Camera Integration

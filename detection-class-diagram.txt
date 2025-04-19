@@ -1,0 +1,34 @@
++------------------------+     +-------------------------+
+|  ViolenceDetectionFacade    |     |     DetectionContext      |
++------------------------+     +-------------------------+
+| - alertFactory         |     | - strategy: Detection   |
+| - detectionContext     |     | + setStrategy()         |
+| + detectViolenceInVideo|     | + detectViolence()      |
+| + detectViolenceFromCamera   | + getStrategyName()     |
+| + getAvailableStrategies    | + getAvailableStrategies|
++------------------------+     +-------------------------+
+            |                            |
+            |                            |
++-----------------------+      +------------------------+
+|   <<interface>>       |      |    DetectionStrategy   |
+|  DetectionStrategy    |<|----| + detect()             |
++-----------------------+      | + getName()            |
+| + detect()            |      | + getDescription()     |
+| + getName()           |      | + getAccuracy()        |
+| + getDescription()    |      +------------------------+
+| + getAccuracy()       |               ^
++-----------------------+               |
+            ^                          |
+            |          +-------------------------+
+            |          |  ViolenceDetection      |
+            |----------|  MovementDetection      |
+                      |  BehaviorAnalysis        |
+                      +-------------------------+
+
++------------------------+     +----------------------+
+|    AlertFactory        |     |        Alert        |
++------------------------+     +----------------------+
+| + createAlert()        |     | - source: string    |
+| + getAlerts()         |---->| - confidence: number |
++------------------------+     | - timestamp: Date    |
+                             +----------------------+

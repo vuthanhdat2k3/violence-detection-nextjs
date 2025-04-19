@@ -44,6 +44,24 @@ export abstract class ModelFactory {
   abstract getAvailableModels(): ModelInfo[]
 }
 
+type ModelCreator = (config: ModelConfig) => Model;
+
+export class ModelRegistry {
+  private static creators: Map<string, ModelCreator> = new Map();
+
+  static register(type: string, creator: ModelCreator) {
+    ModelRegistry.creators.set(type, creator);
+  }
+
+  static getCreator(type: string): ModelCreator {
+    const creator = ModelRegistry.creators.get(type);
+    if (!creator) {
+      throw new Error(`No creator registered for model type: ${type}`);
+    }
+    return creator;
+  }
+}
+
 // Concrete Violence Model
 export class ViolenceModel implements Model {
   id: string
@@ -71,7 +89,10 @@ export class ViolenceModel implements Model {
     this.size = size
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async predict(data: ModelData): Promise<ModelPredictionResult> {
+    // In a real implementation, this would call the API
+    // For now, we'll simulate a response
     return new Promise((resolve) => {
       setTimeout(() => {
         const isFight = Math.random() > 0.5
@@ -124,7 +145,9 @@ export class MovementModel implements Model {
     this.size = size
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async predict(data: ModelData): Promise<ModelPredictionResult> {
+    // Implementation for movement detection
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
@@ -176,6 +199,7 @@ export class BehaviorModel implements Model {
     this.size = size
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async predict(data: ModelData): Promise<ModelPredictionResult> {
     // Implementation for behavior analysis
     return new Promise((resolve) => {
@@ -204,67 +228,34 @@ export class BehaviorModel implements Model {
 
 // Concrete Factory
 export class ConcreteModelFactory extends ModelFactory {
-  private models: Model[] = []
-
   constructor() {
-    super()
-    this.models.push(
-      new ViolenceModel("model1", "Default Violence Model", 94.7, "active", "2023-12-15", "245 MB"),
-      new ViolenceModel("model2", "Enhanced Violence Model", 96.2, "active", "2024-02-20", "312 MB"),
-      new MovementModel("model3", "Person Movement Model", 92.5, "inactive", "2023-11-05", "178 MB"),
-      new BehaviorModel("model4", "Custom Behavior Model 1", 88.3, "active", "2024-01-10", "203 MB"),
-    )
+    super();
+    // Register default creators
+    ModelRegistry.register("violence", (config) => 
+      new ViolenceModel(
+        this.generateId(),
+        config.name || "Violence Model",
+        config.accuracy || 90.0,
+        "active",
+        new Date().toISOString().split("T")[0],
+        config.size || "250 MB"
+      )
+    );
+    
+    ModelRegistry.register("movement", (config) => 
+      new MovementModel(/*...*/));
+    
+    ModelRegistry.register("behavior", (config) => 
+      new BehaviorModel(/*...*/));
   }
 
   createModel(type: string, config?: ModelConfig): Model {
-    const modelConfig: ModelConfig = config || {}
-    const modelId = `model${this.models.length + 1}`
-    const modelName =
-      modelConfig.name || `New ${type.charAt(0).toUpperCase() + type.slice(1)} Model ${this.models.length + 1}`
-    const modelAccuracy = modelConfig.accuracy || 90.0
-    const modelSize = modelConfig.size || "250 MB"
-    const currentDate = new Date().toISOString().split("T")[0]
-
-    let newModel: Model
-
-    switch (type) {
-      case "violence":
-        newModel = new ViolenceModel(modelId, modelName, modelAccuracy, "active", currentDate, modelSize)
-        break
-      case "movement":
-        newModel = new MovementModel(modelId, modelName, modelAccuracy, "active", currentDate, modelSize)
-        break
-      case "behavior":
-        newModel = new BehaviorModel(modelId, modelName, modelAccuracy, "active", currentDate, modelSize)
-        break
-      default:
-        throw new Error(`Unknown model type: ${type}`)
-    }
-
-    this.models.push(newModel)
-    return newModel
+    const creator = ModelRegistry.getCreator(type);
+    return creator(config || {});
   }
 
-  getAvailableModels(): ModelInfo[] {
-    return this.models.map((model) => model.getInfo())
-  }
-
-  getModelById(id: string): Model | undefined {
-    return this.models.find((model) => model.id === id)
-  }
-
-  addModel(model: Model): void {
-    this.models.push(model)
-  }
-
-  updateModelStatus(id: string, status: "active" | "inactive"): boolean {
-    const model = this.models.find((m) => m.id === id)
-    if (model) {
-      // Use type assertion to access status property
-      ;(model as ViolenceModel | MovementModel | BehaviorModel).status = status
-      return true
-    }
-    return false
+  private generateId(): string {
+    return `model${this.models.length + 1}`;
   }
 }
 

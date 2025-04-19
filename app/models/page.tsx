@@ -16,7 +16,7 @@ export default function ModelManagement() {
   useEffect(() => {
     // Load models from the factory
     setModels(modelFactory.getAvailableModels())
-  }, [])
+  }, [modelFactory])
 
   const handleActivateDeactivate = (modelId: string, currentStatus: "active" | "inactive") => {
     const newStatus = currentStatus === "active" ? "inactive" : "active"

@@ -64,6 +64,8 @@ export class VideoDetector implements Detector {
   }
 
   async detect(input: VideoDetectionInput): Promise<VideoDetectionResult> {
+    // In a real implementation, this would process the video
+    // For now, we'll delegate to the model
     const modelData: ModelData = { videoFile: input.videoFile }
     const result = await this.model.predict(modelData)
     return result as VideoDetectionResult
@@ -85,6 +87,8 @@ export class CameraDetector implements Detector {
   }
 
   async detect(input: CameraDetectionInput): Promise<CameraDetectionResult> {
+    // In a real implementation, this would connect to the camera
+    // For now, we'll simulate a response
     console.log(`Starting detection on camera ${input.cameraId} with model ${this.model.name}`)
     return {
       message: `Detection started on camera ${input.cameraId} using ${this.model.name}`,
@@ -107,6 +111,7 @@ export class BatchDetector implements Detector {
   }
 
   async detect(input: BatchDetectionInput): Promise<BatchDetectionResult[]> {
+    // Process multiple videos in batch
     const results: BatchDetectionResult[] = []
     for (const file of input.videoFiles) {
       const modelData: ModelData = { videoFile: file }
@@ -122,19 +127,43 @@ export class BatchDetector implements Detector {
   }
 }
 
-// Concrete Factory
-export class ConcreteDetectorFactory extends DetectorFactory {
-  createDetector(type: DetectorType, model: Model): Detector {
-    switch (type) {
-      case "video":
-        return new VideoDetector(`detector-${Date.now()}`, "Video Detector", model)
-      case "camera":
-        return new CameraDetector(`detector-${Date.now()}`, "Camera Detector", model)
-      case "batch":
-        return new BatchDetector(`detector-${Date.now()}`, "Batch Detector", model)
-      default:
-        throw new Error(`Unknown detector type: ${type}`)
+// Registry for detector creators
+type DetectorCreator = (id: string, name: string, model: Model) => Detector;
+
+export class DetectorRegistry {
+  private static creators: Map<DetectorType, DetectorCreator> = new Map();
+
+  static register(type: DetectorType, creator: DetectorCreator) {
+    DetectorRegistry.creators.set(type, creator);
+  }
+
+  static getCreator(type: DetectorType): DetectorCreator {
+    const creator = DetectorRegistry.creators.get(type);
+    if (!creator) {
+      throw new Error(`No creator registered for detector type: ${type}`);
     }
+    return creator;
+  }
+}
+
+// Improved Factory
+export class ConcreteDetectorFactory extends DetectorFactory {
+  constructor() {
+    super();
+    // Register default creators
+    DetectorRegistry.register("video", 
+      (id, name, model) => new VideoDetector(id, name, model));
+    DetectorRegistry.register("camera", 
+      (id, name, model) => new CameraDetector(id, name, model));
+    DetectorRegistry.register("batch", 
+      (id, name, model) => new BatchDetector(id, name, model));
+  }
+
+  createDetector(type: DetectorType, model: Model): Detector {
+    const creator = DetectorRegistry.getCreator(type);
+    const id = `detector-${Date.now()}`;
+    const name = `${type.charAt(0).toUpperCase() + type.slice(1)} Detector`;
+    return creator(id, name, model);
   }
 }
 

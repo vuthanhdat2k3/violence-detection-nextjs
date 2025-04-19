@@ -1,0 +1,18 @@
++------------------+    +-----------------+    +------------------+
+|     Frontend     |    |    Facades     |    |    Strategies    |
++------------------+    +-----------------+    +------------------+
+| - Dashboard      |----| - Violence     |----| - Detection      |
+| - VideoDetection |    |   Detection    |    | - Training       |
+| - CameraDetection|    | - Model        |    | - Analysis       |
+| - Training       |    |   Training     |    |                  |
++------------------+    +-----------------+    +------------------+
+         |                      |                      |
+         |                      |                      |
++------------------+    +-----------------+    +------------------+
+|    Registries    |    |    Factories    |    |   Repositories  |
++------------------+    +-----------------+    +------------------+
+| - Detector       |----| - Detection     |----| - Sample        |
+| - Model          |    |   System        |    | - Model         |
+| - Strategy       |    | - Model         |    | - Alert         |
++------------------+    | - Detector      |    +------------------+
+                       +-----------------+

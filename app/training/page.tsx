@@ -5,70 +5,91 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import { Upload, Play, Pause, BarChart2, Save, RefreshCw } from "lucide-react"
+import { Upload, Play, Pause, BarChart2, Save, RefreshCw, Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getTrainingFactory, type TrainingSession } from "@/lib/factories/training-factory"
-import { getSampleFactory } from "@/lib/factories/sample-factory"
-import { getModelFactory } from "@/lib/factories/model-factory"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { getModelTrainingFacade, type TrainingOptions } from "@/lib/facades/model-training-facade"
+import type { TrainingSession } from "@/lib/factories/training-factory"
+import type { Sample } from "@/lib/factories/sample-factory"
+import type { ResourceRequirements } from "@/lib/types/training-types"
 
 export default function Training() {
   const [activeTraining, setActiveTraining] = useState<TrainingSession | null>(null)
   const [trainingSessions, setTrainingSessions] = useState<TrainingSession[]>([])
   const [newModelName, setNewModelName] = useState("New Violence Model")
-  const [modelType, setModelType] = useState("violence")
-  const [datasetType, setDatasetType] = useState("default")
+  const [selectedStrategyId, setSelectedStrategyId] = useState("violence")
   const [epochs, setEpochs] = useState(10)
   const [batchSize, setBatchSize] = useState(32)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [samples, setSamples] = useState<Sample[]>([])
+  const [strategies, setStrategies] = useState<
+    { id: string; name: string; description: string; resources: ResourceRequirements }[]
+  >([])
 
-  const trainingFactory = getTrainingFactory()
-  const sampleFactory = getSampleFactory()
-  const modelFactory = getModelFactory()
+  // Get the facade
+  const modelTrainingFacade = getModelTrainingFacade()
 
   useEffect(() => {
-    // Load training sessions
-    setTrainingSessions(trainingFactory.getTrainingSessions())
+    // Load training sessions from the facade
+    setTrainingSessions(modelTrainingFacade.getTrainingSessions())
 
-    // Set up interval to update progress
-    const interval = setInterval(() => {
-      if (activeTraining) {
-        const progress = activeTraining.getProgress()
-        if (progress >= 100) {
-          setActiveTraining(null)
-          // Refresh training sessions
-          setTrainingSessions(trainingFactory.getTrainingSessions())
-        } else {
-          // Force a re-render to update progress
-          setActiveTraining({ ...activeTraining })
-        }
+    // Load samples from the facade
+    setSamples(modelTrainingFacade.getAvailableSamples())
+
+    // Load training strategies from the facade
+    setStrategies(modelTrainingFacade.getAvailableTrainingStrategies())
+  }, [modelTrainingFacade])
+
+  const startTraining = async () => {
+    try {
+      // Create training options
+      const trainingOptions: TrainingOptions = {
+        modelName: newModelName,
+        strategyType: selectedStrategyId,
+        epochs: epochs,
+        batchSize: batchSize,
       }
-    }, 500)
 
-    return () => clearInterval(interval)
-  }, [activeTraining])
+      // Start training through the facade
+      const newSession = await modelTrainingFacade.startModelTraining(trainingOptions)
+      setActiveTraining(newSession)
 
-  const startTraining = () => {
-    // Get samples based on dataset type
-    const samples = sampleFactory.getAvailableSamples()
+      // Set up progress monitoring
+      modelTrainingFacade.setupProgressMonitoring(newSession.id, (progress) => {
+        if (progress >= 100) {
+          // Training completed
+          setActiveTraining(null)
+          // Update training sessions list
+          setTrainingSessions(modelTrainingFacade.getTrainingSessions())
+        } else {
+          // Update progress
+          setActiveTraining((prevSession) => {
+            if (!prevSession) return null
+            return { ...prevSession, progress }
+          })
+        }
+      })
 
-    // Create a new training session
-    const newSession = trainingFactory.createTrainingSession(newModelName, "New Training", samples)
-
-    // Start the training
-    newSession.startTraining()
-    setActiveTraining(newSession)
-
-    // Update the training sessions list
-    setTrainingSessions(trainingFactory.getTrainingSessions())
-  }
-
-  const stopTraining = () => {
-    if (activeTraining) {
-      activeTraining.stopTraining()
-      setActiveTraining(null)
-      // Refresh training sessions
-      setTrainingSessions(trainingFactory.getTrainingSessions())
+      // Update training sessions list
+      setTrainingSessions(modelTrainingFacade.getTrainingSessions())
+    } catch (error) {
+      console.error("Error starting training:", error)
     }
   }
+
+  const stopTraining = async () => {
+    if (activeTraining) {
+      // Stop training through the facade
+      await modelTrainingFacade.stopTraining(activeTraining.id)
+      setActiveTraining(null)
+
+      // Update training sessions list
+      setTrainingSessions(modelTrainingFacade.getTrainingSessions())
+    }
+  }
+
+  // Lấy thông tin chiến lược đã chọn
+  const selectedStrategy = strategies.find((strategy) => strategy.id === selectedStrategyId)
 
   return (
     <div className="container mx-auto py-6">
@@ -87,7 +108,7 @@ export default function Training() {
               <Card>
                 <CardHeader>
                   <CardTitle>Train New Model</CardTitle>
-                  <CardDescription>Create and train a new violence detection model</CardDescription>
+                  <CardDescription>Create and train a new model using the selected strategy</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
@@ -103,30 +124,45 @@ export default function Training() {
                     </div>
 
                     <div className="grid w-full items-center gap-1.5">
-                      <label className="text-sm font-medium">Model Type</label>
+                      <label className="text-sm font-medium">Training Strategy</label>
                       <select
                         className="w-full p-2 border rounded-md"
-                        value={modelType}
-                        onChange={(e) => setModelType(e.target.value)}
+                        value={selectedStrategyId}
+                        onChange={(e) => setSelectedStrategyId(e.target.value)}
                       >
-                        <option value="violence">Violence Detection</option>
-                        <option value="movement">Movement Detection</option>
-                        <option value="behavior">Behavior Analysis</option>
+                        {strategies.map((strategy) => (
+                          <option key={strategy.id} value={strategy.id}>
+                            {strategy.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
-                    <div className="grid w-full items-center gap-1.5">
-                      <label className="text-sm font-medium">Training Dataset</label>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        value={datasetType}
-                        onChange={(e) => setDatasetType(e.target.value)}
-                      >
-                        <option value="default">Default Violence Dataset</option>
-                        <option value="extended">Extended Violence Dataset</option>
-                        <option value="custom">Custom Dataset</option>
-                      </select>
-                    </div>
+                    {selectedStrategy && (
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Strategy Information</AlertTitle>
+                        <AlertDescription>
+                          <p>{selectedStrategy.description}</p>
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                            <p>
+                              <strong>Required Memory:</strong> {selectedStrategy.resources.minMemory}GB
+                            </p>
+                            <p>
+                              <strong>GPU Recommended:</strong>{" "}
+                              {selectedStrategy.resources.recommendedGPU ? "Yes" : "No"}
+                            </p>
+                            <p>
+                              <strong>Est. Training Time:</strong> {selectedStrategy.resources.estimatedTrainingTime}{" "}
+                              minutes
+                            </p>
+                            <p>
+                              <strong>Required Disk Space:</strong> {selectedStrategy.resources.diskSpace}GB
+                            </p>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors">
                       <Upload className="mx-auto h-8 w-8 text-gray-400" />
@@ -145,7 +181,9 @@ export default function Training() {
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="text-gray-500">Epoch:</span>
-                          <p className="font-medium">{activeTraining.epoch}/10</p>
+                          <p className="font-medium">
+                            {activeTraining.epoch}/{epochs}
+                          </p>
                         </div>
                         <div>
                           <span className="text-gray-500">Loss:</span>
@@ -265,11 +303,13 @@ export default function Training() {
                   <div className="grid w-full items-center gap-1.5">
                     <label className="text-sm font-medium">Select Base Model</label>
                     <select className="w-full p-2 border rounded-md">
-                      {modelFactory.getAvailableModels().map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.name}
-                        </option>
-                      ))}
+                      {trainingSessions
+                        .filter((session) => session.status === "completed")
+                        .map((session) => (
+                          <option key={session.id} value={session.id}>
+                            {session.modelName}
+                          </option>
+                        ))}
                     </select>
                   </div>
 
@@ -279,11 +319,17 @@ export default function Training() {
                   </div>
 
                   <div className="grid w-full items-center gap-1.5">
-                    <label className="text-sm font-medium">Training Dataset</label>
-                    <select className="w-full p-2 border rounded-md">
-                      <option value="default">Default Violence Dataset</option>
-                      <option value="extended">Extended Violence Dataset</option>
-                      <option value="custom">Custom Dataset</option>
+                    <label className="text-sm font-medium">Training Strategy</label>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      value={selectedStrategyId}
+                      onChange={(e) => setSelectedStrategyId(e.target.value)}
+                    >
+                      {strategies.map((strategy) => (
+                        <option key={strategy.id} value={strategy.id}>
+                          {strategy.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -346,7 +392,7 @@ export default function Training() {
                       <tr className="bg-gray-100">
                         <th className="p-2 text-left">Date</th>
                         <th className="p-2 text-left">Model</th>
-                        <th className="p-2 text-left">Type</th>
+                        <th className="p-2 text-left">Strategy</th>
                         <th className="p-2 text-left">Duration</th>
                         <th className="p-2 text-left">Final Accuracy</th>
                         <th className="p-2 text-left">Status</th>

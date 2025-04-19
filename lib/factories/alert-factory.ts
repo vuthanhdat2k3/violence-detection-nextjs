@@ -69,6 +69,7 @@ export class ConcreteAlertFactory extends AlertFactory {
 
   constructor() {
     super()
+    // Initialize with some default alerts
     this.alerts.push(
       new ConcreteAlert("alert1", "Main Entrance", "Today, 10:23 AM", 87, "new", true, "/alerts/alert1.mp4"),
       new ConcreteAlert("alert2", "Parking Lot", "Yesterday, 8:45 PM", 92, "reviewed", true, "/alerts/alert2.mp4"),
@@ -92,7 +93,7 @@ export class ConcreteAlertFactory extends AlertFactory {
       videoUrl || null,
     )
 
-    this.alerts.unshift(newAlert) 
+    this.alerts.unshift(newAlert) // Add to the beginning of the array
     return newAlert
   }
 
